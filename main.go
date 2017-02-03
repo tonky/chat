@@ -9,10 +9,20 @@ import (
 )
 
 var addr = flag.String("addr", ":8080", "http service address")
+var clients []*websocket.Conn
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+}
+
+func writeAll(msgType int, data []byte) {
+	for _, conn := range clients {
+		if err := conn.WriteMessage(msgType, data); err != nil {
+			log.Println(err)
+			return
+		}
+	}
 }
 
 func serveWs(w http.ResponseWriter, r *http.Request) {
@@ -23,18 +33,17 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// fmt.Println(conn)
+	clients = append(clients, conn)
 
 	for {
 		messageType, p, err := conn.ReadMessage()
+
 		if err != nil {
 			log.Println(err)
 			return
 		}
-		if err = conn.WriteMessage(messageType, p); err != nil {
-			log.Println(err)
-			return
-		}
+
+		writeAll(messageType, p)
 	}
 }
 
